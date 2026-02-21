@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wobe</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#121212',
+                        darkCard: '#1e1e1e',
+                        wobeBlue: '#38bdf8'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; transition: background-color 0.3s; }
+        .logo-text { font-size: 6rem; font-weight: 700; letter-spacing: -5px; }
+        .wobe-input { background: transparent !important; border: none !important; outline: none !important; width: 100%; color: inherit; font-size: inherit; display: block; }
+        .search-shadow:focus-within { box-shadow: 0 4px 12px rgba(0,0,0,0.5); border-color: #38bdf8 !important; }
+        .loading-dots:after { content: '.'; animation: dots 1s steps(5, end) infinite; }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
+    </style>
+</head>
+<body class="bg-white dark:bg-darkBg text-gray-900 dark:text-gray-100 min-h-screen flex flex-col relative">
+
+    <!-- Modal de Personalización -->
+    <div id="custom-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div class="bg-white dark:bg-darkCard w-full max-w-md rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden transform transition-all">
+            <div class="p-6">
+                <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Personalizar Perfil</h3>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                        <span class="text-sm font-medium">Activar personalización</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="user-custom-enabled" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-wobeBlue"></div>
+                        </label>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1 ml-1">Tu nombre</label>
+                        <input type="text" id="user-name-input" class="w-full p-3 rounded-xl bg-gray-100 dark:bg-gray-800 border-none outline-none focus:ring-2 focus:ring-wobeBlue transition" placeholder="Ej: Luciano">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1 ml-1">Inicial (1 letra)</label>
+                        <input type="text" id="user-initial-input" maxlength="1" class="w-12 p-3 text-center rounded-xl bg-gray-100 dark:bg-gray-800 border-none outline-none focus:ring-2 focus:ring-wobeBlue transition uppercase" placeholder="L">
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-800/50 p-4 flex justify-end gap-3">
+                <button id="modal-close" class="bg-wobeBlue hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-xl transition-colors">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Estado de usuario persistente (simulado)
+        let userState = {
+            enabled: false,
+            name: "Invitado",
+            initial: "W"
+        };
+
+        const WOBE_CONFIG = {
+            aiEndpoint: "https://text.pollinations.ai/",
+            services: [
+                { name: "LUDAVIdeo", url: "https://free.ludavideo.ct.ws" }
+            ],
+            footerLocation: "Colombia",
+            footerLinks: [
+                { name: "Privacidad", url: "https://sites.google.com/view/wobe-search/legal" },
+                { name: "Condiciones", url: "https://sites.google.com/view/wobe-search/legal" }
+            ],
+            directAnswers: [
+                { keyword: "creador de wobe", title: "Luciano", info: "Es el creador de Wobe. Luciano es el CEO de este proyecto." },
+{ keyword: "hermana de luciano", title: "Danna & Violetta", info: "Son las hermanas de Luciano, el creador de Wobe." },
+{ keyword: "api", title: "Wobe for developers APIs", info: "Wobe ofrece APIs baratas para desarrolladores incluidas la API de Nexo, LUDAVIdeo, Wobe Cloud y AreLuARobot. La mayoría son gratuitas, pero APIs como la de Nexo son de pago con un precio bajo." },
+                { keyword: "ceo de wobe", title: "Luciano", info: "Luciano es el líder y CEO de Wobe." }
+            ],
+            webMapping: [
+                { keyword: "nexo", title: "Nexo IA", url: "https://sites.google.com/view/wobe-nexo", info: "Tu asistente personal con IA." },
+                { keyword: "ludavideo", title: "Wobe LUDAVIdeo", url: "https://free.ludavideo.ct.ws", info: "Mira videos de la forma correcta. Míralo en LUDAVIdeo." },
+{ keyword: "youtube", title: "PATROCINADO: Wobe LUDAVIdeo", url: "https://free.ludavideo.ct.ws", info: "Mira videos de la forma correcta. Míralo en LUDAVIdeo." }
+            ]
+        };
+
+        function showModal() {
+            const modal = document.getElementById('custom-modal');
+            document.getElementById('user-custom-enabled').checked = userState.enabled;
+            document.getElementById('user-name-input').value = userState.name;
+            document.getElementById('user-initial-input').value = userState.initial;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        document.getElementById('modal-close').onclick = () => {
+            userState.enabled = document.getElementById('user-custom-enabled').checked;
+            userState.name = document.getElementById('user-name-input').value || "Usuario";
+            userState.initial = (document.getElementById('user-initial-input').value || "L").toUpperCase();
+            
+            document.getElementById('profile-pic').innerText = userState.initial;
+            document.getElementById('custom-modal').classList.add('hidden');
+            document.getElementById('custom-modal').classList.remove('flex');
+        };
+    </script>
+
+    <header class="p-4 flex justify-between gap-4 text-sm items-center z-10">
+        <button id="toggle-dark-mode" class="bg-gray-100 dark:bg-gray-800 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+            <i class="fa-solid fa-moon dark:hidden"></i>
+            <i class="fa-solid fa-sun hidden dark:block"></i>
+        </button>
+        <div class="flex gap-4 items-center">
+            <div id="header-links" class="flex gap-4 items-center"></div>
+            <div id="profile-pic" class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold cursor-pointer hover:opacity-80 transition select-none" onclick="showModal()">L</div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col items-center pt-20 px-4 relative z-0">
+        <div id="home-view" class="w-full flex flex-col items-center">
+            <div class="logo-text mb-8 select-none text-gray-900 dark:text-white">W<span class="text-wobeBlue">o</span>be</div>
+            <div class="w-full max-w-xl">
+                <div class="flex items-center border border-gray-300 dark:border-gray-700 rounded-full px-5 py-3 bg-white dark:bg-darkCard search-shadow transition-all">
+                    <i class="fa-solid fa-magnifying-glass text-gray-400 mr-3"></i>
+                    <input type="text" id="search-input" class="wobe-input text-lg" placeholder="Busca en Wobe..." autocomplete="off">
+                </div>
+                <div class="flex justify-center gap-3 mt-8">
+                    <button id="btn-search-home" class="bg-gray-100 dark:bg-gray-800 border border-transparent hover:border-gray-300 dark:hover:border-gray-600 px-4 py-2 rounded text-sm text-gray-700 dark:text-gray-300 transition">Buscar con Wobe</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="results-view" class="w-full max-w-3xl hidden mt-4">
+            <div class="flex items-center border border-gray-300 dark:border-gray-700 rounded-full px-4 py-2 mb-8 bg-white dark:bg-darkCard search-shadow">
+                <input type="text" id="search-input-results" class="wobe-input text-md">
+                <i id="btn-search-icon" class="fa-solid fa-magnifying-glass text-blue-500 cursor-pointer"></i>
+            </div>
+
+            <div id="direct-answer" class="hidden w-full bg-white dark:bg-darkCard rounded-2xl p-8 mb-6 border-l-8 border-wobeBlue shadow-lg">
+                <h1 id="da-title" class="text-4xl font-bold mb-2 text-gray-900 dark:text-white"></h1>
+                <p id="da-info" class="text-lg text-gray-600 dark:text-gray-400"></p>
+            </div>
+
+            <div id="response-container" class="bg-blue-50 dark:bg-blue-900/20 rounded-2xl p-6 mb-8 border border-blue-100 dark:border-blue-800">
+                <div class="flex items-center gap-2 mb-3">
+                    <i class="fa-solid fa-bolt text-blue-600 dark:text-blue-400"></i>
+                    <span class="font-semibold text-blue-800 dark:text-blue-300">De Nexo</span>
+                </div>
+                <div id="response-content" class="text-gray-700 dark:text-gray-300 leading-relaxed"></div>
+            </div>
+
+            <div id="web-mapping-container" class="space-y-4 mb-10"></div>
+        </div>
+    </main>
+
+    <footer class="bg-gray-100 dark:bg-gray-900 text-sm text-gray-600 dark:text-gray-400 mt-auto">
+        <div class="px-8 py-3 border-b border-gray-300 dark:border-gray-800" id="footer-location"></div>
+        <div id="footer-links" class="px-8 py-3 flex flex-wrap gap-6 text-xs sm:text-sm"></div>
+    </footer>
+
+    <script>
+        const homeView = document.getElementById('home-view');
+        const resultsView = document.getElementById('results-view');
+        const searchInputHome = document.getElementById('search-input');
+        const searchInputResults = document.getElementById('search-input-results');
+        const responseContent = document.getElementById('response-content');
+        const directAnswerDiv = document.getElementById('direct-answer');
+        const webMappingContainer = document.getElementById('web-mapping-container');
+
+        function init() {
+            document.documentElement.classList.add('dark');
+            document.getElementById('header-links').innerHTML = WOBE_CONFIG.services.map(s => `<a href="${s.url}" target="_blank" class="hover:underline">${s.name}</a>`).join('');
+            document.getElementById('footer-location').innerText = WOBE_CONFIG.footerLocation;
+            document.getElementById('footer-links').innerHTML = WOBE_CONFIG.footerLinks.map(l => `<a href="${l.url}" target="_blank" class="hover:underline">${l.name}</a>`).join('');
+        }
+
+        async function fetchAI(query) {
+            let userContext = userState.enabled ? `El usuario se llama ${userState.name}. Salúdalo por su nombre al inicio. ` : "";
+            const systemPrompt = `Eres Nexo, la IA de Wobe, creada por Luciano. ${userContext}Responde siempre en español de forma breve, útil y amable.`;
+            const fullPrompt = encodeURIComponent(`${systemPrompt}\n\nUsuario pregunta: ${query}`);
+            const url = `${WOBE_CONFIG.aiEndpoint}${fullPrompt}?model=openai&json=false`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Error de servidor");
+                const text = await response.text();
+                return text || "No pude procesar la búsqueda.";
+            } catch (e) {
+                return "Lo siento, Nexo está fuera de línea momentáneamente.";
+            }
+        }
+
+        async function performSearch(query) {
+            if (!query) return;
+            homeView.classList.add('hidden');
+            resultsView.classList.remove('hidden');
+            searchInputResults.value = query;
+            
+            const lowerQuery = query.toLowerCase();
+            const daMatch = WOBE_CONFIG.directAnswers.find(da => lowerQuery.includes(da.keyword.toLowerCase()));
+            
+            if (daMatch) {
+                directAnswerDiv.classList.remove('hidden');
+                document.getElementById('da-title').innerText = daMatch.title;
+                document.getElementById('da-info').innerText = daMatch.info;
+            } else { 
+                directAnswerDiv.classList.add('hidden'); 
+            }
+
+            const mappingMatch = WOBE_CONFIG.webMapping.filter(m => lowerQuery.includes(m.keyword.toLowerCase()));
+            webMappingContainer.innerHTML = mappingMatch.map(m => `
+                <div class="bg-white dark:bg-darkCard p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
+                    <a href="${m.url}" target="_blank" class="text-blue-500 hover:underline text-xl font-semibold">${m.title}</a>
+                    <p class="text-gray-500 mt-1">${m.info}</p>
+                </div>
+            `).join('');
+
+            responseContent.innerHTML = '<span class="loading-dots text-blue-500">Nexo está pensando</span>';
+            const text = await fetchAI(query);
+            responseContent.innerHTML = text.replace(/\n/g, '<br>');
+        }
+
+        document.getElementById('btn-search-home').onclick = () => performSearch(searchInputHome.value.trim());
+        document.getElementById('btn-search-icon').onclick = () => performSearch(searchInputResults.value.trim());
+        searchInputHome.onkeydown = (e) => { if (e.key === 'Enter') performSearch(e.target.value); };
+        searchInputResults.onkeydown = (e) => { if (e.key === 'Enter') performSearch(e.target.value); };
+        document.getElementById('toggle-dark-mode').onclick = () => document.documentElement.classList.toggle('dark');
+
+        window.onload = init;
+    </script>
+</body>
+</html>
